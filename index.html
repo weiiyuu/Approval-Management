@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email 審閱表單</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        textarea { width: 100%; height: 100px; padding: 8px; }
+        button { padding: 10px 20px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
+        button:hover { background-color: #0056b3; }
+        #feedbackSection { display: none; margin-top: 20px; border-top: 1px solid #ccc; padding-top: 15px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <h2>Email 草稿審閱</h2>
+    <div id="emailContent" style="background: #f9f9f9; padding: 10px; margin-bottom: 20px; border: 1px solid #ddd;">
+        <!-- 這裡可以動態插入草稿內容，或靜態顯示 -->
+        <p>草稿內容：...</p>
+    </div>
+
+    <form id="reviewForm">
+        <div class="form-group">
+            <label for="action">審閱結果：</label>
+            <select id="action" name="action" required onchange="toggleFeedback()">
+                <option value="approve">Approve (批准)</option>
+                <option value="reject">Reject (拒絕)</option>
+            </select>
+        </div>
+
+        <div id="feedbackSection" class="hidden">
+            <div class="form-group">
+                <label for="modificationInstruction">請輸入修改方向：</label>
+                <textarea id="modificationInstruction" name="modificationInstruction" placeholder="例如：請將語氣改為更正式..."></textarea>
+            </div>
+        </div>
+
+        <button type="submit">提交審閱</button>
+    </form>
+
+    <script>
+        // 從 URL 參數獲取 Webhook URL (假設 URL 格式為: https://your-page.com?webhookUrl=...)
+        const urlParams = new URLSearchParams(window.location.search);
+        const webhookUrl = urlParams.get('webhookUrl');
+
+        if (!webhookUrl) {
+            alert('錯誤：缺少 Webhook URL 參數');
+            document.querySelector('form').style.display = 'none';
+        }
+
+        // 切換修改輸入框的顯示
+        function toggleFeedback() {
+            const action = document.getElementById('action').value;
+            const feedbackSection = document.getElementById('feedbackSection');
+            const instructionInput = document.getElementById('modificationInstruction');
+
+            if (action === 'reject') {
+                feedbackSection.classList.remove('hidden');
+                instructionInput.required = true; // 拒絕時必填
+            } else {
+                feedbackSection.classList.add('hidden');
+                instructionInput.required = false;
+                instructionInput.value = ''; // 清空輸入框
+            }
+        }
+
+        // 處理表單提交
+        document.getElementById('reviewForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const action = document.getElementById('action').value;
+            const instruction = document.getElementById('modificationInstruction').value;
+
+            const payload = {
+                action: action,
+                modification_instruction: action === 'reject' ? instruction : ''
+            };
+
+            fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert('審閱已提交！流程將繼續執行。');
+                    document.getElementById('reviewForm').style.display = 'none';
+                    document.getElementById('feedbackSection').style.display = 'none';
+                } else {
+                    alert('提交失敗，請重試。');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('提交時發生錯誤。');
+            });
+        });
+    </script>
+</body>
+</html>
